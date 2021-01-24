@@ -3,15 +3,11 @@
     <constants>
         T_EXP_WAKEUP=15
     </constants>
-    <sm name="Masthuggstorget">
-        <init state="Home">
-        <sm name="Home">
-            <init state="Special">
-            <sm name="Default">
-                <init>
-        
-                </init>
-
+    <statemachine name="Masthuggstorget">
+        <init state="Home"/>
+        <state name="Home">
+            <init state="Special"/>
+            <state name="Default">
                 <state name="Night">
                     <entry>
                         <lamp>
@@ -64,8 +60,8 @@
                     <tr to="Night">
                     </tr>            
                 </state>
-            </sm>
-            <sm name="Special">
+            </state>
+            <state name="Special">
                 <init state="Arrive"/>
                 <state name="Arrive">
                     <entry>
@@ -91,11 +87,11 @@
                     <tr to="../Default">
                     </tr>            
                 </state>
-            </sm>
+            </state>
             <tr to="Out">
             </tr>      
-        </sm>
-        <sm name="Out">
+        </state>
+        <state name="Out">
             <state name="Night">
                     <entry>
                     </entry>
@@ -108,8 +104,8 @@
                     <tr to="Night">
                     </tr>        
             </state>
-        </sm>
-    </sm>
+        </state>
+    </statemachine>
 </fsm>
 
 <!--
