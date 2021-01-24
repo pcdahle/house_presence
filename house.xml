@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+<fsm>
+    <constants>
+        T_EXP_WAKEUP=15
+    </constants>
+    <sm name="Masthuggstorget">
+        <init state="Home">
+        <sm name="Home">
+            <init state="Special">
+            <sm name="Default">
+                <init>
+        
+                </init>
+
+                <state name="Night">
+                    <entry>
+                        <lamp>
+                            <idx>22</idx>
+                            <set>off</set>
+                        </lamp>
+                    </entry>
+                    <tr to="Day">
+                        <sunrise>+01:00</sunrise>
+                    </tr>
+                    <tr to="Wakeup">
+                        <button>25</button>
+                    </tr>
+                    <tr to="NightWalk">
+                    </tr>
+                </state>
+                <state name="NightWalk">
+                    <entry>
+                    </entry>
+                    <tr to="Night">
+                    </tr>
+                </state>
+                <state name="Wakeup">
+                    <entry>
+                    </entry>
+                    <tr to="Morning">
+                    </tr>
+                </state>
+                <state name="Morning">
+                    <entry>
+                    </entry>
+                    <tr to="Day">
+                    </tr>
+                </state>
+                <state name="Day">
+                    <entry>
+                    </entry>
+                    <tr to="Evening">
+                    </tr>            
+                </state>
+                <state name="Evening">
+                    <entry>
+                    </entry>
+                    <tr to="Bedtime"/>
+                    <tr to="Night"/>
+                </state>
+                <state name="Bedtime">
+                    <entry>
+                    </entry>
+                    <tr to="Night">
+                    </tr>            
+                </state>
+            </sm>
+            <sm name="Special">
+                <init state="Arrive"/>
+                <state name="Arrive">
+                    <entry>
+                    </entry>
+                    <tr to="../Default">
+                    </tr>            
+                </state>
+                <state name="TV">
+                    <entry>
+                    </entry>
+                    <tr to="../Default">
+                    </tr>            
+                </state>
+                <state name="Dinner">
+                    <entry>
+                    </entry>
+                    <tr to="../Default">
+                    </tr>            
+                </state>
+                <state name="Work">
+                    <entry>
+                    </entry>
+                    <tr to="../Default">
+                    </tr>            
+                </state>
+            </sm>
+            <tr to="Out">
+            </tr>      
+        </sm>
+        <sm name="Out">
+            <state name="Night">
+                    <entry>
+                    </entry>
+                    <tr to="Day">
+                    </tr>        
+            </state>
+            <state name="Day">
+                    <entry>
+                    </entry>
+                    <tr to="Night">
+                    </tr>        
+            </state>
+        </sm>
+    </sm>
+</fsm>
+
+<!--
+[Constants]
+T_EXP_WAKEUP_MIN=15
+
+[Home]
+    T = [ "Out", "Away" ]
+    [Home.Default]                                                      # triggers function on_Entry_HomeDefault on entry etc. this function can trigger the initial substate
+        InitState_TimeOfDay = [ "Sunrise+0100:Day" , "Sunset-0100:Evening", "0200:Night" ]                                                              # if none defined the first one will be triggered
+        T = [ "Special.TV" , "Special.Work", "Special.Dinner" ]
+
+        [Home.Default.Night]                                            # triggers function on_Entry_HomeDefaultNight on entry and on_Exit_HomeDefaultNight on exit if present
+            Entry = [ "Lamp:45:off", "Lamp:22:off" ]
+            T1 = "Time=Sunrise+0100:Day"
+            T2 = "Button=45:Wakeup"
+            Exit = []
+        [Home.Default.Wakeup]
+            T1 = "TimeoutMin=T_EXP_WAKEUP:Morning"
+        [Home.Default.Morning]
+            T = [ "Day" ]
+        [Home.Default.Day]
+            T = [ "Evening" ]
+        [Home.Default.Evening]
+            T = [ "Night", "Bedtime" ]
+        [Home.Default.Bedtime]
+            T = [ "Night" ]
+    [Home.Special]
+        T = [ "Default" ]
+        [Home.Special.Arrive]
+            T = [ "..Default" ]
+        [Home.Special.TV]
+            T = [ "..Default" ]
+        [Home.Special.Dinner]
+            T = [ "..Default" ]
+        [Home.Special.Work]
+            T = [ "..Default" ]
+[Out]
+    InitState_TimeOfDay = [ "Sunrise+0100:Day", "Sunset-0100:Night" ]
+    T = [ "Home.Special.Arrive", "Away" ]
+    [Out.Day]
+        T = [ "Night" ]
+    [Out.Night]
+        T = [ "Day" ]
+[Away]
+    InitState_TimeOfDay = [ "Sunrise+0100:Day", "Sunset-0100:Night" ]
+    [Away.Day]
+        Entry = [ "Lamp:45:On", "DimmableLamp:23:On,43" ]
+        T = [ "Night" ]
+    [Away.Night]
+        T = [ "Day" ]
+
+-->

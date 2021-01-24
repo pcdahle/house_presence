@@ -84,7 +84,7 @@ house_state = HouseMachine.find_first_state()
 phone_monitor = PhoneMonitor("<MAC ADDRESS>")
 domoticz = Domoticz()
 
-cfg = toml.load(cfgfile)
+
 
 while True:
     time.sleep(T_POLL_TIME_S)
