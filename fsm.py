@@ -1,3 +1,4 @@
+from presence import sec_to_hour
 import xml.etree.ElementTree as ET
 import threading
 import time
@@ -17,18 +18,23 @@ class Transition:
         self.name = name
         self.action = action
 
-    def execute_action(self):
+   def execute_action(self):
         if self.action:
             self.action()
 
 
+
 class StateMachine:
-    def __init__(self, name, parent = None):
+    def __init__(self, name, on_action = None, parent = None):
         self.name = name
         self.transitions = []
         self.states = []
-        self.entry_action = None
-        self.exit_action = None
+        if callable(on_action):
+            self.on_action = on_action
+            print("Added action function: {}".format(self.on_action))
+        else:
+            raise Exception("Object is not a function: {}".format(on_action))
+        self.on_action = on_action
         self.parent = parent
         self.current_state = None
 
@@ -41,28 +47,27 @@ class StateMachine:
                 return True
         return False
 
-    def add_entry_action(self, action):
-        if callable(action):
-            self.entry_action = action
-            print("Added action function: {}".format(self.entry_action))
-        else:
-            raise Exception("Object is not a function: {}".format(action))
-
     def add_entry_actions(self, xml_action_elmt):
         self.xml_entry_action_elmt = xml_action_elmt
 
-    def add_exit_action(self, action):
-        self.exit_action = action
+    def add_exit_action(self, xml_action_elmt):
+        self.xml_exit_action_elmt = xml_action_elmt
 
     def execute_entry_action(self):
         print("Enter state {}".format(self.name))
-        if self.entry_action:
-            print(format(self.entry_action))
-            self.entry_action(self.xml_entry_action_elmt)
+        if self.on_action:
+            self.on_action(self.xml_entry_action_elmt)
+
+        # Check if there is a self trigger timeout
+        if self.self_trigger_timeout_s:
+            # Start a timer and exectte
+            timer.start(self.self_trigger_timeout_s, self.transitions[transition_name].function)
 
     def execute_exit_action(self):
-        if self.exit_action:
-            self.exit_action()
+        print("Exit state {}".format(self.name))
+        if self.on_action:
+            print(format(self.entry_action))
+            self.on_action(self.xml_exit_action_elmt)
 
     def is_top_statemachine(self):
         return self.parent == None
@@ -70,18 +75,24 @@ class StateMachine:
     def is_statemachine(self):
         return len(self.states)>0
 
+    def is_state(self):
+        return not self.is_statemachine()
+
+    def set_self_trigger_transition_timeout_s(self,sec):
+        self.self_trigger_timeout_s = sec
+
     def add_state(self, state):
         # print("adding state: {} to {}".format(state.name,self.name))
         self.states.append(state)
         state.parent_sm = self
 
-    def substate_by_name(self, substate_name):
+    def get_substate_by_name(self, substate_name):
         for state in self.states:
             if state.name.lower() == substate_name.lower():
                 return state
         return None
 
-    def add_initaction(self, init_action):
+    def add_init_action(self, init_action):
         self.init_action = init_action
 
     def set_init_state_name(self, init_state_name):
@@ -117,7 +128,7 @@ class StateMachine:
         if not self.current_state:
             if self.init_state_name:
                 print("Setting init state: "+self.init_state_name)
-                self.current_state = self.substate_by_name(self.init_state_name)
+                self.current_state = self.get_substate_by_name(self.init_state_name)
             elif self.init_action:
                 self.current_state = self.init_action()
             else:
@@ -146,23 +157,34 @@ class StateMachine:
         except KeyError:
             transition_name = from_state.name + "_to_" + target_state_name
 
+        new_transition = Transition(target_state_name, transition_name)
+
         for xml_element in xml_element_transition:
             if xml_element.tag in [ "action" ]:
                 raise NotImplemented()
+            if xml_element.tag in [ "trigger" ]:
+                for xml_element_trigger in xml_element:
+                    if xml_element_trigger.tag in [ "timeout" ]:
+                        try:
+                            sec = xml_element_trigger.attrib['sec']
+                            new_transition.add_self_trigger_timeout_s(int(sec))
+                        except:
+                            pass
 
-        new_transition = Transition(target_state_name, transition_name)
+
+
         return new_transition
 
     @staticmethod
     def _parse_init_state(xml_element_init):
         try:
-            init_state = xml_element_init.attrib['state']
+            init_state_name = xml_element_init.attrib['state']
         except KeyError:
             raise Exception("Init state without state defined: {} "+format(xml_element_init))
-        return init_state
+        return init_state_name
 
     @staticmethod
-    def _parse_state(xml_element_state, parent_state = None, level=0, onAction = None):
+    def _parse_state(xml_element_state, on_action, parent_state = None, level=0):
         # The sm MUST have a name otherwise we cannot refer to the state
         try:
             smname = xml_element_state.attrib['name']
@@ -170,23 +192,18 @@ class StateMachine:
             raise Exception("Statemachine without name".format())
         
         # Create the state
-        new_state = StateMachine(name=smname, parent=parent_state)
+        new_state = StateMachine(name=smname, on_action=on_action, parent=parent_state)
         if parent_state:
             parent_state.add_state(new_state)
         if new_state.is_top_statemachine():
             levelprint(level,"Building statemachine "+smname)            
         else:
             levelprint(level,"Building state "+smname)
-        # For now inherit onAction function from the parent
-        if onAction:
-            new_state.add_entry_action(onAction)
-        else:
-            new_state.add_entry_action(parent_state.entry_action)
 
         for xml_element in xml_element_state:
             tag = xml_element.tag.lower()
             if tag in STATE_TAGS:
-                StateMachine._parse_state(xml_element, new_state, level+1)
+                StateMachine._parse_state(xml_element, on_action, new_state, level+1)
 
             elif tag in TRANSITION_TAGS:
                 transition = StateMachine._parse_transition(xml_element, new_state)
@@ -207,8 +224,7 @@ class StateMachine:
         return new_state
 
     @staticmethod
-    def from_xml_element(xml_sm, onAction):
-
-        return StateMachine._parse_state(xml_sm, onAction=onAction )
+    def from_xml_element(xml_sm, on_action):
+        return StateMachine._parse_state(xml_sm, on_action)
 
 

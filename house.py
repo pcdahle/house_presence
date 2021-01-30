@@ -1,4 +1,4 @@
-from presence import Domoticz
+#from presence import Domoticz
 import xml.etree.ElementTree as ET
 from fsm import StateMachine
 import time
@@ -13,8 +13,9 @@ def onAction(xml_actions):
         if tag == "lamp":
             alias = xml_action.attrib['alias']
             state = xml_action.attrib['state']
-            dcz.set_lamp(alias, state)
-
+            print("Set lamp {} to {}".format(alias,state))
+            #dcz.lamp(idx).on
+            
     # Find all lamps
 
 
@@ -39,6 +40,14 @@ xmlcfg = xmltree.getroot()
 # const = toml.loads(xmlcfg.find('constants').text)
 xml_const = xmlcfg.find('constants')
 xml_dcz = xmlcfg.find('domoticz')
+try:
+    xml_triggers = xml_dcz.find('triggers')
+    for trigger in xml_triggers.get('event'):
+        name = trigger.attrib['name']
+        print(name)
+except:
+    print("No triggers defined")    
+
 print(xml_const.text)
 print(xml_dcz.text)
 
