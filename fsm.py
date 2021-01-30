@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import threading
+import time
 
 STATE_TAGS = ["machine","state","sm","statemachine","submachine"]
 TRANSITION_TAGS = [ "tr", "transition" ]
@@ -41,14 +42,23 @@ class StateMachine:
         return False
 
     def add_entry_action(self, action):
-        self.entry_action = action
+        if callable(action):
+            self.entry_action = action
+            print("Added action function: {}".format(self.entry_action))
+        else:
+            raise Exception("Object is not a function: {}".format(action))
+
+    def add_entry_actions(self, xml_action_elmt):
+        self.xml_entry_action_elmt = xml_action_elmt
 
     def add_exit_action(self, action):
         self.exit_action = action
 
     def execute_entry_action(self):
+        print("Enter state {}".format(self.name))
         if self.entry_action:
-            self.entry_action()
+            print(format(self.entry_action))
+            self.entry_action(self.xml_entry_action_elmt)
 
     def execute_exit_action(self):
         if self.exit_action:
@@ -61,31 +71,41 @@ class StateMachine:
         return len(self.states)>0
 
     def add_state(self, state):
+        # print("adding state: {} to {}".format(state.name,self.name))
         self.states.append(state)
         state.parent_sm = self
 
     def substate_by_name(self, substate_name):
         for state in self.states:
-            if state.name == substate_name:
+            if state.name.lower() == substate_name.lower():
                 return state
         return None
 
     def add_initaction(self, init_action):
         self.init_action = init_action
 
-    def set_init_state(self, init_state):
-        self.init_state_name = init_state
+    def set_init_state_name(self, init_state_name):
+        self.init_state_name = init_state_name
 
     def trigger_transition(self, transition):
-        if self.current_state.has_transition(transition):
-            self.current_state.execute_exit_action()
-            transition.execute_action()
-            self.current_state = transition.target_state
-            self.current_state.execute_entry_action()
-            self._wait_for_transition()
+        if self.running:
+            self.mutex.acquire()
+            try:
+                if self.current_state.has_transition(transition):
+                    self.current_state.execute_exit_action()
+                    transition.execute_action()
+                    self.current_state = transition.target_state
+                    self.current_state.execute_entry_action()
+                    self._run()
+            finally:
+                self.mutex.release()
+        else:
+            raise Exception("State machine is not started")
 
-    def _wait_for_transition(self):
-        while True:
+    def _run(self):
+        self.mutex = threading.Lock()
+        while self.running:
+            time.sleep(1)
 
 
     def start(self):
@@ -93,8 +113,10 @@ class StateMachine:
         # 1) defined init state
         # 2) execute init action which is a callback returning the init state
 
+        print("Starting statemachine "+self.name)
         if not self.current_state:
             if self.init_state_name:
+                print("Setting init state: "+self.init_state_name)
                 self.current_state = self.substate_by_name(self.init_state_name)
             elif self.init_action:
                 self.current_state = self.init_action()
@@ -104,10 +126,14 @@ class StateMachine:
         if self.current_state.is_statemachine():
             self.current_state.start()
         else:
-            self.current_state.execute_entry_action()
             self.running = True
-            threading.Thread(target=self._wait_for_transition)
+            self.current_state.execute_entry_action()
+            self.smthread = threading.Thread(target=self._run)
 
+    def stop(self):
+        self.running = False
+        self.smthread.join()
+        
     @staticmethod
     def _parse_transition(xml_element_transition, from_state):
         try: 
@@ -136,7 +162,7 @@ class StateMachine:
         return init_state
 
     @staticmethod
-    def _parse_state(xml_element_state, parent_state = None, level=0):
+    def _parse_state(xml_element_state, parent_state = None, level=0, onAction = None):
         # The sm MUST have a name otherwise we cannot refer to the state
         try:
             smname = xml_element_state.attrib['name']
@@ -151,6 +177,11 @@ class StateMachine:
             levelprint(level,"Building statemachine "+smname)            
         else:
             levelprint(level,"Building state "+smname)
+        # For now inherit onAction function from the parent
+        if onAction:
+            new_state.add_entry_action(onAction)
+        else:
+            new_state.add_entry_action(parent_state.entry_action)
 
         for xml_element in xml_element_state:
             tag = xml_element.tag.lower()
@@ -162,22 +193,22 @@ class StateMachine:
                 levelprint(level+1,"added transition: "+transition.name)
                 new_state.add_transition(transition)
             elif tag in ENTRY_TAGS:
-                new_state.add_entry_action(xml_element)
+                new_state.add_entry_actions(xml_element)
             elif tag in EXIT_TAGS:
                 new_state.add_exit_action(xml_element)
             elif tag in INIT_TAGS:
-                init_state = StateMachine._parse_init_state(xml_element)
-                levelprint(level, "with init state: "+init_state)
+                init_state_name = StateMachine._parse_init_state(xml_element)
+                levelprint(level, "with init state: "+init_state_name)
 
-                new_state.set_init_state(init_state)
+                new_state.set_init_state_name(init_state_name)
             else:
                 raise Exception("Unknown tag: {}"+xml_element.tag)
  
         return new_state
 
     @staticmethod
-    def from_xml_element(xml_sm):
+    def from_xml_element(xml_sm, onAction):
 
-        return StateMachine._parse_state(xml_sm)
+        return StateMachine._parse_state(xml_sm, onAction=onAction )
 
 

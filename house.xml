@@ -1,7 +1,14 @@
 <?xml version="1.0"?>
 <fsm>
+    <domoticz>
+        <lamp alias="starwars" idx="21"/>
+        <lamp alias="bigwhite" idx="22"/>
+        <lamp alias="bedside"  idx="24"/>
+        <lamp alias="globe"    idx="25"/>
+        <lamp alias="tvceil"   idx="27"/>
+    </domoticz>
     <constants>
-        T_EXP_WAKEUP=15
+        <const name="T_EXP_WAKEUP_MIN" val="15"/>
     </constants>
     <statemachine name="Masthuggstorget">
         <init state="Home"/>
@@ -10,10 +17,11 @@
             <state name="Default">
                 <state name="Night">
                     <entry>
-                        <lamp>
-                            <idx>22</idx>
-                            <set>off</set>
-                        </lamp>
+                        <lamp alias="starwars" state="off"/>
+                        <lamp alias="bigwhite" state="off"/>
+                        <lamp alias="bedside" state="off"/>
+                        <lamp alias="globe" state="off"/>
+                        <lamp alias="tvceil" state="off"/>
                     </entry>
                     <tr to="Day">
                         <sunrise>+01:00</sunrise>
@@ -22,12 +30,20 @@
                         <button>25</button>
                     </tr>
                     <tr to="NightWalk">
+                        <lamp alias="bigwhite">
+                            <state>on</state>
+                            <twwcw>190,190,65</twwcw>
+                        </lamp>
+                        <lamp alias="bathroomnight" state="on"/> 
                     </tr>
                 </state>
                 <state name="NightWalk">
                     <entry>
                     </entry>
                     <tr to="Night">
+                        <selftimer sec="180"/>
+                        <lamp alias="bigwhite" state="off"/>
+                        <lamp alias="bathroomnight" state="off"/>
                     </tr>
                 </state>
                 <state name="Wakeup">
@@ -44,18 +60,42 @@
                 </state>
                 <state name="Day">
                     <entry>
+                        <lamp alias="starwars" state="off"/>
+                        <lamp alias="bigwhite" state="off"/>
+                        <lamp alias="bedside" state="off"/>
+                        <lamp alias="globe" state="off"/>
+                        <lamp alias="tvceil" state="off"/>                    
                     </entry>
                     <tr to="Evening">
                     </tr>            
                 </state>
                 <state name="Evening">
                     <entry>
+                        <lamp alias="starwars">
+                            <state>on</state>
+                            <twwcw>190,190,65</twwcw>
+                        </lamp>
+                        <lamp alias="bigwhite">
+                            <state>on</state>
+                            <twwcw>190,190,65</twwcw>
+                        </lamp>
+                        <lamp alias="bedside" state="fullon"/>
+                        <lamp alias="globe" state="fullon"/>
+                        <lamp alias="tvceil">
+                            <state>on</state>
+                            <twwcw>190,190,65</twwcw>
+                        </lamp>
                     </entry>
                     <tr to="Bedtime"/>
                     <tr to="Night"/>
                 </state>
                 <state name="Bedtime">
                     <entry>
+                        <lamp alias="starwars" state="off"/>
+                        <lamp alias="bigwhite" state="off"/>
+                        <lamp alias="bedside" state="fullon"/>
+                        <lamp alias="globe" state="fullon"/>
+                        <lamp alias="tvceil" state="off"/>
                     </entry>
                     <tr to="Night">
                     </tr>            
@@ -65,6 +105,11 @@
                 <init state="Arrive"/>
                 <state name="Arrive">
                     <entry>
+                        <lamp alias="starwars" state="fullon"/>
+                        <lamp alias="bigwhite" state="fullon"/>
+                        <lamp alias="bedside" state="fullon"/>
+                        <lamp alias="globe" state="fullon"/>
+                        <lamp alias="tvceil" state="fullon"/>
                     </entry>
                     <tr to="../Default">
                     </tr>            
